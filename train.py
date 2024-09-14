@@ -16,7 +16,7 @@ from nermo_rl_locomotion.env_kwargs import ENV_KWARGS, EVAL_KWARGS, MONITOR_KWAR
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="NermoMaxVelocity-v0", help="Environment ID")
+    parser.add_argument("--env", type=str, default="NermoBound-v0", help="Environment ID")
     parser.add_argument("--env-kwargs", type=json.loads, default="{}", help='Overwrite the specified keyword arguments for the environment (pass in json format e.g. {"energy_penalty_weight": -0.1}')
     parser.add_argument("-en", "--experiment-name", type=str, help="Name for the experiment (should be unique within the specified env)")
     parser.add_argument("-ed", "--experiment-desc", type=str, default="", help="Detailed description for the experiment")
@@ -36,12 +36,12 @@ if __name__ == '__main__':
     parser.add_argument(
         "--eval-freq",
         help="Evaluate the agent every n steps (if negative, no evaluation). Can be a float in the range (0, 1) or and integer. A float x in (0, 1) will be interpreted as n = x * n_timesteps (where n_timesteps is the number of timesteps used for training)",
-        default=100000,
+        default= 500000,
         type=float,
     )
-    parser.add_argument("--n-eval-episodes", help="Number of episodes to use for evaluation", default=12, type=int)
+    parser.add_argument("--n-eval-episodes", help="Number of episodes to use for evaluation", default=4, type=int)
     parser.add_argument("--n-eval-envs", help="Number of environments for evaluation", default=1, type=int)
-    parser.add_argument("--checkpoint-freq", help="Save the model every n steps (if negative, no checkpoint). Can be a float in the range (0, 1) or and integer. A float x in (0, 1) will be interpreted as n = x * n_timesteps (where n_timesteps is the number of timesteps used for training)", default=100000, type=float)
+    parser.add_argument("--checkpoint-freq", help="Save the model every n steps (if negative, no checkpoint). Can be a float in the range (0, 1) or and integer. A float x in (0, 1) will be interpreted as n = x * n_timesteps (where n_timesteps is the number of timesteps used for training)", default=500000, type=float)
     parser.add_argument(
         "--save-replay-buffer", help="Save the replay buffer too (when applicable)", action="store_true", default=False
     )

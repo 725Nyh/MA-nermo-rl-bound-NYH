@@ -133,7 +133,7 @@ class ExperimentManager(object):
         self.vec_env_class = {"dummy": DummyVecEnv, "subproc": SubprocVecEnv}[vec_env_type]
         self.vec_env_kwargs = {}
         self.n_envs = multiprocessing.cpu_count() if vec_env_type == "subproc" else 1           # may be updated when reading hyperparams
-
+        #self.n_envs = 1
         # Callbacks
         self.specified_callbacks = []
         self.callbacks = []

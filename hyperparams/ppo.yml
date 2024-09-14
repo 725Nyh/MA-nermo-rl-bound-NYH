@@ -16,13 +16,16 @@ NermoMaxVelocity-v0: &nermo-defaults
   clip_range: 0.2
   env_wrapper:
     - gym.wrappers.rescale_action.RescaleAction:
-        min_action: -1
-        max_action: 1
+        a: -1
+        b: 1
 
 NermoFixedVelocity-v0:
   <<: *nermo-defaults
 
 NermoDirectedYawEnv-v0:
+  <<: *nermo-defaults
+
+NermoBound-v0:
   <<: *nermo-defaults
 
 NermoDesiredTurningRadiusEnv-v0:

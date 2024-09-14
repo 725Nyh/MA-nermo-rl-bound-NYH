@@ -5,7 +5,7 @@ BASE_ENV_KWARGS = {
     "frame_skip": 4,
     #"penalize_orthogonal_movement": True,
     "terminate_upon_falling": True,
-    "knees_on_ground_as_falling": False,
+    "knees_on_ground_as_falling": True,
     "falling_penalty": -1,
     "terminate_in_nonfinite_simulation_state": True,
     "energy_penalty_weight": 0,
@@ -33,7 +33,12 @@ ENV_KWARGS = {
         "desired_velocity": 0.2,
         "velocity_tracking_reward_weight": 0.032,
         "velocity_step_granularity": 0.05,
-        "energy_penalty_weight": -0.1
+        "energy_penalty_weight": 0
+    },
+    "NermoBound-v0": {
+        **BASE_ENV_KWARGS,
+        "desired_velocity": 0.2,
+        "bound_reward_weight": 0.5,
     },
     "NermoCommandedVelocity-v0": {
         **BASE_ENV_KWARGS,
@@ -134,6 +139,10 @@ MONITOR_KWARGS = {
         "info_keywords": directed_env_monitor_keywords
     },
     "NermoFixedVelocity-v0": {
+        "info_keywords": directed_env_monitor_keywords + ["velocity_deviation", "abs_velocity_deviation", "jump_reward","sync_penalty"]
+    },
+
+    "NermoBound-v0": {
         "info_keywords": directed_env_monitor_keywords + ["velocity_deviation", "abs_velocity_deviation"]
     },
     "NermoCommandedVelocity-v0": {

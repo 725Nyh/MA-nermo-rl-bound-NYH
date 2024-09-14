@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("--video-length", type=int, default=None, help="Record a video of the agent for n steps (do not specify in order to not record a video at all and render the agent behavior to the screen instead)")
     parser.add_argument("--video-resolution", nargs=2, type=int, default=[1440, 810], help="Resolution \"width height\" of the video that is to be recorded. The higher the resolution, the longer the recording takes.")
     parser.add_argument("--video-base-path", type=str, default=None, help=f"Path under which the recorded videos should be saved (do not specify in order to store the videos within a 'videos' folder at the specified training path). Note: can only be set when the training path is relative to {LEARNED_MODEL_PATH}")
-    parser.add_argument("--cam-ids", nargs="+", type=int, default=[18], help="Ids of the MuJoCo cameras for which a video should be recorded (one video for each camera). For rendering to the screen the first camera in the given list is used for the initial point of view.")
+    parser.add_argument("--cam-ids", nargs="+", type=int, default=[5], help="Ids of the MuJoCo cameras for which a video should be recorded (one video for each camera). For rendering to the screen the first camera in the given list is used for the initial point of view.")
     parser.add_argument("--n-episodes", type=int, default=-1, help="Number of rendered episodes to enjoy (-1 to loop until interrupted by ctrl+c or until the videos have been recorded)")
     parser.add_argument("--no-rendering", action="store_true", default=False, help="Do not render the agent (useful when only measurements via monitor are needed)")
     parser.add_argument("--no-monitor-file", action="store_true", default=False, help="Do not write the aggregated episode information of the monitor to a file")
@@ -372,7 +372,9 @@ if __name__ == "__main__":
                             # )
                             plot_metrics_over_episode(
                                 episode_infos=episode_infos,
-                                metrics=["current_yaw","smoothed_yaw","cummulative_angle_displacement"],
+                                # metrics=["current_yaw","smoothed_yaw","cummulative_angle_displacement"],
+                                metrics=["primary_reward", "secondary_reward", "invariable_penalties"],
+
                                 x_scale_factor=x_scale_factor,
                                 # caution: positions are negative
                                 x_label=x_label,
@@ -503,14 +505,14 @@ if __name__ == "__main__":
                             #         smoothing_window=None,
                             #         smoothed_only=not smoothed_only,
                             #     )
-                            if info.get("spine_angle") is not None:                    
+                            if info.get("spine_angle") is not None:
                                 angle_metrics = ["spine_angle"]
                                 metric_labels = ["Spine motor angle"]
                                 show_legend = True
                                 plot_metrics_over_episode(
                                     episode_infos=episode_infos,
                                     metrics=angle_metrics,
-                                    x_scale_factor=x_scale_factor,  
+                                    x_scale_factor=x_scale_factor,
                                     x_label=x_label,
                                     y_label="Spine motor angle [rad]",
                                     figure_name=f"spine_angle{episode_num}",

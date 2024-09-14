@@ -1,4 +1,9 @@
-# Pushing physical limit and uncovering motion templates of spine-based quadruped locomotion via reinforcement learning
+# Development of Bounding-Gait Locomotion Policies for a Neurorobotic Mouse Robot via Deep Reinforcement Learning
+Master thesis under the supervision of [Prof. Alois Knoll](https://www.cit.tum.de/cit/startseite/) and advised by [Dr. Zhenshan Bing](https://www.cit.tum.de/cit/startseite/) at the chair for [Robotics, Artificial Intelligence and Embedded Systems](https://www.cit.tum.de/cit/startseite/) at the [Technical University of Munich](https://www.tum.de/).
+
+The master thesis is building on a previous [master thesis](https://github.com/yulongxiao97/bt-nermo-rl-locomotion-niklas).
+
+The goal is to achieve quadrupedal bounding locomotion for the [Neurorobotic Mouse (NeRmo)](https://mediatum.ub.tum.de/attfile/1540519/incoming/2020-Mar/453064.pdf) in the MuJoCo simulation using Deep Reinforcement Learning.
 
 
 # Setup & Installation
@@ -45,8 +50,15 @@
     Note: the correct gym version for our purposes needs to be installed separately due to conflicting version requirements with [Stable Baselines 3 v1.4.0](https://github.com/DLR-RM/stable-baselines3/releases/tag/v1.4.0)
     
 
+# Important note
+* Most arguments have reasonable defaults that can be inspected in `nermo_rl_locomotion/train.py`
+* Available environments are registered in `nermo_rl_locomotion/__init__.py`  
+* Hyperparameters for each environment are defined in `hyperparameters/<algo>.yml`
+* Environment args currently need to be specified in the code of `nermo_rl_locomotion/env_kwargs.py`
+* Trainings can be monitored in realtime using [TensorBoard](https://www.tensorflow.org/tensorboard)
+* After adding new environment, please register in `nermo_rl_locomotion/__init__.py`
+* The mujoco model of Nermo robot in this repository is the version with vertical spine, check `models/dynamic_4l_vertical.xml`
 
-# Usage
 ## Train an agent
 ```bash
 $ python3 train.py -h
@@ -93,13 +105,6 @@ optional arguments:
   --log-interval LOG_INTERVAL
                         Override log interval (if negative, no change)
 ```
-
-Note:
-* Most arguments have reasonable defaults that can be inspected in `nermo_rl_locomotion/train.py`
-* Available environments are registered in `nermo_rl_locomotion/__init__.py`  
-* Hyperparameters for each environment are defined in `hyperparameters/<algo>.yml`
-* Environment args currently need to be specified in the code of `nermo_rl_locomotion/env_kwargs.py`
-* Trainings can be monitored in realtime using [TensorBoard](https://www.tensorflow.org/tensorboard)
 
 
 ## Run multiple experiments after another

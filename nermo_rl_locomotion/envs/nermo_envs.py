@@ -14,7 +14,8 @@ from gym.envs.mujoco.mujoco_env import MujocoEnv
 # Build paths relative to the absolute path of this script (or rather the script's parent dir)
 # Source: https://stackoverflow.com/a/55051039
 BASE_PATH = Path(__file__).parent
-MUJOCO_MODEL_PATH = (BASE_PATH / "../../models/dynamic_4l.xml").resolve()
+MUJOCO_MODEL_PATH = (BASE_PATH / "../../models/dynamic_4l_vertical.xml").resolve()
+#MUJOCO_MODEL_PATH = (BASE_PATH / "../../models/dynamic_4l.xml").resolve()
 
 """
     Gym training environments for NeRmo. 
@@ -136,6 +137,9 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
         self.power = 0
         self.speed = 0
 
+        self.previous_z = None
+        self.current_z = self.get_sensor("com_pos", 3, use_correct_sensors=True)[-1]
+
         self.info = {}
 
     
@@ -157,28 +161,32 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
  
         if self.action_offset_range is None:
             bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
-            
             for index in sorted(self.actuator_indices_to_exclude, reverse=True):
                 bounds = np.delete(bounds, index, axis=0)
 
             # for i in range(8):
             #     bounds = np.delete(bounds, i+1, axis=0)
-
             if self.exclude_lateral_spine_actuation:
                 for i in range(8):
                     bounds = np.delete(bounds, i+1, axis=0)
                     # print(bounds)
             else:
                 for i in range(9):
+                #for i in range(8):
                     bounds = np.delete(bounds, i+1, axis=0)
+            #print("origin_bounds",bounds)
+
+            #Small action space, only use when force the synchronization
+            #bounds = np.delete(bounds, [2,3,6,7 ], axis=0)
 
             low, high = bounds.T
+            #print("third_time",bounds)
             self.action_space = spaces.Box(low=low, high=high, dtype=np.float32)
         else:
             n_active_actuators = self.model.nu - len(self.actuator_indices_to_exclude)
             self.action_space = spaces.Box(low=self.action_offset_range[0], high=self.action_offset_range[1], shape=(n_active_actuators,), dtype=np.float32)
 
-        # print(self.action_space)
+        print(self.action_space)
         return self.action_space
     
     def step(self, action, i=None):
@@ -190,32 +198,86 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
             self.action_history.append(action)
             if self.action_smoothing_window is not None:
                 action = np.mean(self.action_history, axis=0)
+        #print("origin_action",action)
 
+        """Small action space, only use when force the synchronization
+        sync_bound, by adjusting action space
+        front_action = [action[0],action[1]]
+        rear_action = [action[2],action[3]]
+        spine_action = [0,action[4]]
+        #print(front_action,rear_action,spine_action)
+        action = np.concatenate((front_action,front_action, rear_action, rear_action, spine_action))
+        #print("unpadded_action",action)
+        """
         # for i in range(8):
         #     action = np.insert(action, 2*i+1, 0)
-
         if self.exclude_lateral_spine_actuation:
             for i in range(8):
                 action = np.insert(action, 2*i+1, 0)
         else:
-            for i in range(9):
+            for i in range(8):
                 action = np.insert(action, 2*i+1, 0)
         
         for index in sorted(self.actuator_indices_to_exclude):
             action = np.insert(action, index, 0)
+        #print("padded_action",action)
+        """PADDING WHEN ONLY USE VERTICAL SPINE"""
+        action = np.insert(action, -2, 0)
+
+        """padding to exclude vertical spine"""
+        #action[-1] = 0
+        #print("after_padding_action", action)
 
         #get previous positions before simulation step in order to calculate velocities
         self.previous_mouse_xy_position = self.get_sensor("com_pos", 2, use_correct_sensors=True)
         self.previous_yaw = self.quat2euler(self.get_sensor("com_quat", 4, use_correct_sensors=True))[0, 2]
         # print(self.previous_yaw)
+        self.previous_z = self.get_sensor("com_pos", 3, use_correct_sensors=True)[-1]
 
         self.do_simulation(action, self.frame_skip)
+        #print("action", action)
 
         #get current positions before simulation step in order to calculate velocities
         self.current_mouse_xy_position = self.get_sensor("com_pos", 2, use_correct_sensors=True)
         self.current_yaw = self.quat2euler(self.get_sensor("com_quat", 4, use_correct_sensors=True))[0, 2]
-        
+        self.current_z = self.get_sensor("com_pos", 3, use_correct_sensors=True)[-1]
+
         observation = self._get_observation()
+
+        # lf_reletive
+        site_name = "leg_link_fl"  # Replace with the name of the site you want to get the position of
+        # site_name = "foot_s_fl"
+        site_index = self.model.site_name2id(site_name)
+        # print(self.model.site_id2name(site_index))
+        lf_site_position_world_frame = self.data.site_xpos[site_index]
+        lf_foot_position = self.get_sensor('fl_foot_pos', dimensions=3, use_correct_sensors=True)
+        lf_reletive = np.array(lf_foot_position) - np.array(lf_site_position_world_frame)
+
+        # rf_reletive
+        site_name = "leg_link_fr"  # Replace with the name of the site you want to get the position of
+        # site_name = "foot_s_fr"
+        site_index = self.model.site_name2id(site_name)
+        rf_site_position_world_frame = self.data.site_xpos[site_index]
+        rf_foot_position = self.get_sensor('fr_foot_pos', dimensions=3, use_correct_sensors=True)
+        rf_reletive = np.array(rf_foot_position) - np.array(rf_site_position_world_frame)
+
+        # rh_reletive
+        site_name = "leg_link_rr"  # Replace with the name of the site you want to get the position of
+        # site_name = "foot_s_rr"
+        site_index = self.model.site_name2id(site_name)
+        rh_site_position_world_frame = self.data.site_xpos[site_index]
+        rh_foot_position = self.get_sensor('rr_foot_pos', dimensions=3, use_correct_sensors=True)
+        rh_reletive = np.array(rh_foot_position) - np.array(rh_site_position_world_frame)
+
+        # lh_reletive
+        site_name = "leg_link_rl"  # Replace with the name of the site you want to get the position of
+        # site_name = "foot_s_rl"
+        site_index = self.model.site_name2id(site_name)
+        lh_site_position_world_frame = self.data.site_xpos[site_index]
+        lh_foot_position = self.get_sensor('rl_foot_pos', dimensions=3, use_correct_sensors=True)
+        lh_reletive = np.array(lh_foot_position) - np.array(lh_site_position_world_frame)
+
+
 
         self._compute_velocities()
         self._compute_power_consumption()
@@ -232,45 +294,19 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
         self.episode_step += 1
         self.total_steps += 1
 
-        # lf_reletive
-        site_name = "leg_link_fl"  # Replace with the name of the site you want to get the position of
-        site_index = self.model.site_name2id(site_name)
-        # print(self.model.site_id2name(site_index))
-        lf_site_position_world_frame = self.data.site_xpos[site_index]
-        lf_foot_position = self.get_sensor('fl_foot_pos', dimensions=3, use_correct_sensors=True)
-        lf_reletive = np.array(lf_foot_position)-np.array(lf_site_position_world_frame)
-        # print(lf_reletive)
 
-        # rf_reletive
-        site_name = "leg_link_fr"  # Replace with the name of the site you want to get the position of
-        site_index = self.model.site_name2id(site_name)
-        rf_site_position_world_frame = self.data.site_xpos[site_index]
-        rf_foot_position = self.get_sensor('fr_foot_pos', dimensions=3, use_correct_sensors=True)
-        rf_reletive = np.array(rf_foot_position)-np.array(rf_site_position_world_frame)
-
-        # rh_reletive
-        site_name = "leg_link_rr"  # Replace with the name of the site you want to get the position of
-        site_index = self.model.site_name2id(site_name)
-        rh_site_position_world_frame = self.data.site_xpos[site_index]
-        rh_foot_position = self.get_sensor('rr_foot_pos', dimensions=3, use_correct_sensors=True)
-        rh_reletive = np.array(rh_foot_position)-np.array(rh_site_position_world_frame)
-
-        # lh_reletive
-        site_name = "leg_link_rl"  # Replace with the name of the site you want to get the position of
-        site_index = self.model.site_name2id(site_name)
-        lh_site_position_world_frame = self.data.site_xpos[site_index]
-        lh_foot_position = self.get_sensor('rl_foot_pos', dimensions=3, use_correct_sensors=True)
-        lh_reletive = np.array(lh_foot_position)-np.array(lh_site_position_world_frame)
 
         self.info = {
             "episode_num": self.episode,
             "step": self.episode_step,
             # For the turning environments, _primary_reward should not be called here, because it already gets called in the method _get_reward. 
             # When calling the function _primary_reward twice, the cummulative values calculated there, are not true any more --> more the info entry in the specific classes and do not call the function again. Instead write the value manually
-            # "primary_reward": self._primary_reward,
+            "primary_reward": self._primary_reward,
             # "secondary_rewards": self._secondary_rewards,
             "secondary_reward": self._secondary_reward,
             "invariable_penalties": self._invariable_penalties,
+            "jump_reward": self._jump_reward,
+            "sync_penalty": self.sync_penalty,
             "return": self.reward_return,
             # "curriculum_factors": self.reward_curriculum.curriculum_factors if self.reward_curriculum is not None else None,
             # "has_fallen": self._has_fallen(),
@@ -283,6 +319,7 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
                 "rh": self._has_contact(["foot_rr"]),
                 "lh": self._has_contact(["foot_rl"])
             },
+            "jumping_situation": self._is_jumping(),
             "foot_positions": {
                 "lf": self.get_sensor('fl_foot_pos', dimensions=3, use_correct_sensors=True),
                 "rf": self.get_sensor('fr_foot_pos', dimensions=3, use_correct_sensors=True),
@@ -309,11 +346,8 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
             "rare_orientation_pitch": self.quat2euler(self.get_sensor("rare_orientation", 4, use_correct_sensors=True))[0, 1],
             **self.info
         }
-        # print("rel",self.info["relative_foot_positions"])
-        # print("abs",self.info["foot_positions"])
-
-        
-
+        #print("primary,jump,sync",self._primary_reward, self._jump_reward, self.sync_penalty)
+        #print("foot_place",self.info["site_positions"])
 
         #For Turning environments:
         self.turning_angle_old = self.turning_angle_new
@@ -487,11 +521,13 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
 
     @property
     def _primary_reward(self):
+        #return self._jump_reward + self.sync_penalty
         return 0
 
     @property
     def _secondary_rewards(self):
         # based on the energy penalty in "Sim-to-Real: Learning Agile Locomotion For Quadruped Robots" p. 3-4
+        #print("energy?",self.energy_penalty_weight)
         energy_penalty = self.energy_penalty_weight * self.dt * self.power
 
         # Encourage smoothness of actions / discourage successive actions being far apart
@@ -520,10 +556,13 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
         }
 
         return falling_penalty + knee_on_ground_penalty
-    
-    def _get_reward(self):
-        return self._primary_reward + self._secondary_reward + self._invariable_penalties
 
+
+
+    def _get_reward(self):
+        #return self._primary_reward + self._secondary_reward + self._invariable_penalties + self._jump_reward + self.height_reward + self.sync_penalty
+        return self._primary_reward + self._secondary_reward + self._invariable_penalties
+        #return self._primary_reward + self._secondary_reward + self._invariable_penalties + self._jump_reward + self.sync_penalty
     def _compute_velocities(self):
         displacement = self.current_mouse_xy_position - self.previous_mouse_xy_position
         distance_traveled = np.linalg.norm(displacement)
@@ -554,6 +593,8 @@ class NermoBaseEnv(MujocoEnv, utils.EzPickle):
             if self.model.geom_id2name(contact.geom1) in geoms or self.model.geom_id2name(contact.geom2) in geoms:
                 return True
         return False
+
+
 
     def _is_done(self):
         # ------- Episode Termination -------
@@ -825,6 +866,97 @@ class NermoFixedVelocityEnv(NermoDesiredVelocityEnv):
     def __init__(self, *args, desired_velocity=0.2, **kwargs):
         super().__init__(*args, **kwargs)
         self.desired_velocity = desired_velocity
+
+class NermoBoundEnv(NermoFixedVelocityEnv):
+    def __init__(self,*args, bound_reward_weight = 0.5, **kwargs):
+
+        self.bound_reward_weight = bound_reward_weight
+        super().__init__(*args, **kwargs)
+
+    @property
+    def _jump_reward(self):
+        if self._is_jumping():
+            #TODO: find the best jump_reward_weight
+            """rf_foot_position = self.get_sensor('fr_foot_pos', dimensions=3, use_correct_sensors=True)
+            foot_height = []"""
+            # lf_reletive
+            #site_name = "leg_link_fl"  # Replace with the name of the site you want to get the position of
+            site_name = "foot_s_fl"
+            site_index = self.model.site_name2id(site_name)
+            # print(self.model.site_id2name(site_index))
+            fl_foot = self.data.site_xpos[site_index]
+
+            # rf_reletive
+            # site_name = "leg_link_fr"  # Replace with the name of the site you want to get the position of
+            site_name = "foot_s_fr"
+            site_index = self.model.site_name2id(site_name)
+            fr_foot = self.data.site_xpos[site_index]
+
+            # rh_reletive
+            # site_name = "leg_link_rr"  # Replace with the name of the site you want to get the position of
+            site_name = "foot_s_rr"
+            site_index = self.model.site_name2id(site_name)
+            rr_foot = self.data.site_xpos[site_index]
+
+            # lh_reletive
+            # site_name = "leg_link_rl"  # Replace with the name of the site you want to get the position of
+            site_name = "foot_s_rl"
+            site_index = self.model.site_name2id(site_name)
+            rl_foot = self.data.site_xpos[site_index]
+            #change the required bound height, 0.004, 0.006, 0.008
+            """if fl_foot[2]>=0.006 and fr_foot[2]>=0.006 and rr_foot[2]>=0.006 and rl_foot[2]>=0.006:
+                #print("is_jump",fl_foot[2] + fr_foot[2] + rr_foot[2] + rl_foot[2])
+                return 0.8 * (fl_foot[2] + fr_foot[2] + rr_foot[2] + rl_foot[2])
+            elif fl_foot[2]>=0.005 and fr_foot[2]>=0.005 and rr_foot[2]>=0.005 and rl_foot[2]>=0.005:
+                #print("is_jump",fl_foot[2] + fr_foot[2] + rr_foot[2] + rl_foot[2])
+                return 0.6 * (fl_foot[2] + fr_foot[2] + rr_foot[2] + rl_foot[2])"""
+            if fl_foot[2]>=0.004 and fr_foot[2]>=0.004 and rr_foot[2]>=0.004 and rl_foot[2]>=0.004:
+                #print("is_jump",fl_foot[2] + fr_foot[2] + rr_foot[2] + rl_foot[2])
+                return self.bound_reward_weight * (fl_foot[2] + fr_foot[2] + rr_foot[2] + rl_foot[2])
+            else:
+                #print("is_jump",0)
+                return 0
+        else:
+            #print("not_jump")
+            return 0
+
+    @property
+    def height_reward(self):
+        #print("z_diff", self.previous_z - self.current_z)
+        if self.previous_z - self.current_z<=0:
+            return 0.02*(self.previous_z - self.current_z)
+        else:
+            return 0
+
+    @property
+    def sync_penalty(self):
+        leg_joint_situation =[self.get_sensor("thigh_joint_fl",1,use_correct_sensors=True)[0],
+                              self.get_sensor("leg_joint_fl",1,use_correct_sensors=True)[0],
+                              self.get_sensor("thigh_joint_fr",1,use_correct_sensors=True)[0],
+                              self.get_sensor("leg_joint_fr",1,use_correct_sensors=True)[0],
+                              self.get_sensor("thigh_joint_rl",1,use_correct_sensors=True)[0],
+                              self.get_sensor("leg_joint_rl",1,use_correct_sensors=True)[0],
+                              self.get_sensor("thigh_joint_rr",1,use_correct_sensors=True)[0],
+                              self.get_sensor("leg_joint_rr",1,use_correct_sensors=True)[0]]
+        penalty = -(abs(leg_joint_situation[0]- leg_joint_situation[2])+
+                   abs(leg_joint_situation[1]- leg_joint_situation[3])+
+                   abs(leg_joint_situation[4]- leg_joint_situation[6])+
+                   abs(leg_joint_situation[5]- leg_joint_situation[7]))
+        return penalty * 0.02
+
+    def _is_jumping(self):
+        if self._has_contact(["foot_fl"])==False and self._has_contact(["foot_fr"])==False and self._has_contact(["foot_rr"])==False and self._has_contact(["foot_rl"])==False:
+            return True
+        else:
+            return False
+
+    @property
+    def _primary_reward(self):
+        """
+        Encourage moving at the desired velocity in the given direction
+        """
+
+        return  self._jump_reward + self.sync_penalty+ super()._primary_reward
 
 
 class NermoCommandedVelocityEnv(NermoDesiredVelocityEnv):

@@ -9,10 +9,10 @@ fig, ax = plt.subplots()
 
 # Data for the stance phases (time in msec) depicted in the diagram of Hruska et al. 1979 - Format for each phase: (t_begin, t_end)
 foot_stance_phases = {
-    "lh": [(74.42, 502.335), (613.965, 1041.88), (1162.8125, 1562.82), (1674.45, 2000)],
-    "lf": [(0, 191.6315), (297.68, 725.595), (874.435, 1265.14), (1395.375, 1720.9625), (1897.71, 2000)],
-    "rf": [(37.21, 409.31), (539.545, 967.46), (1097.695, 1488.4), (1637.24, 1972.13)],
-    "rh": [(0, 130.235), (334.89, 818.62), (911.645, 1339.56), (1451.19, 1786.08), (1916.315, 2000)]
+    "lh": [(0,143), (500, 643), (1000,1143), (1500,1643)],
+    "lf": [(357,500), (857,1000), (1357,1500), (1857,2000)],
+    "rf": [(357,500), (857,1000), (1357,1500), (1857,2000)],
+    "rh": [(0,143), (500, 643), (1000,1143), (1500,1643)]
 }
 # Convert phases to format (t_begin, duration) required for matplotlib's `broken_barh` 
 for foot, stance_phases in foot_stance_phases.items():

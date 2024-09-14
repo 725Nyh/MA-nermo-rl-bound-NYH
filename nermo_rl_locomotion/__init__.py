@@ -15,6 +15,12 @@ register(
 )
 
 register(
+    id='NermoBound-v0',
+    entry_point='nermo_rl_locomotion.envs.nermo_envs:NermoBoundEnv',
+    max_episode_steps=2000,     # max_episode_steps * frame_skip * mujoco_timestep = 2000 * 4 * 0.0025s = 20s
+)
+
+register(
     id='NermoCommandedVelocity-v0',
     entry_point='nermo_rl_locomotion.envs.nermo_envs:NermoCommandedVelocityEnv',
     max_episode_steps=2000,     # max_episode_steps * frame_skip * mujoco_timestep = 2000 * 4 * 0.0025s = 20s

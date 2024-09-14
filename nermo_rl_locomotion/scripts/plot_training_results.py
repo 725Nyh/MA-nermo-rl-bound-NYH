@@ -25,7 +25,7 @@ parser.add_argument("-p", "--base-path", help="Path under which the experiments 
 parser.add_argument("-es", "--experiments", nargs="+", help="Names of the experiments for which to plot the results", type=str, required=True)
 parser.add_argument("-ls", "--labels", nargs="+", help="Graph labels to use for the experiments instead of the experiment name. Experiment names are used, if labels are not provided", type=str, required=False, default=None)
 parser.add_argument("-cs", "--colors", nargs="+", help="Colors to use for the experiments instead of the default color cycle. Default color cycle is used, if colors are not provided", type=str, required=False, default=None)
-parser.add_argument("-ms", "--metrics", nargs="+", help="Metrics that are to be plotted", type=str, required=False, default=["return", "primary_return", "secondary_return", "secondary_returns", "velocity", "speed", "power", "orthogonal_velocity", "yaw_rate"])
+parser.add_argument("-ms", "--metrics", nargs="+", help="Metrics that are to be plotted", type=str, required=False, default=["return", "primary_return", "secondary_return", "secondary_returns", "velocity", "speed", "power", "orthogonal_velocity", "yaw_rate", "velocity_deviation", "jump_reward"])
 parser.add_argument("-x", "--x-axis", help="X-axis", choices=["steps", "episodes", "time"], type=str, default="steps")
 parser.add_argument("--window-length", help="Length of the window that is used to smooth the data. Must be an odd number. Set to 0 in order to disable smoothing", type=int, default=51)
 parser.add_argument("-a", "--aggregate", help="The function to use for aggregating the data from the trainings within the experiment", choices=["mean", "median", "max", "min"], type=str, default="median")
@@ -72,9 +72,14 @@ for i, experiment in enumerate(args.experiments):
             "y_label": "Episode return",
             "key": "r"
         },
+        "jump_reward": {
+            "values": [],
+            "y_label": "Bound reward $G_T^p$",
+            "key": "sum_jump_reward"
+        },
         "primary_return": {
             "values": [],
-            "y_label": "Primary return $G_T^p$",
+            "y_label": "Velocity return $G_T^p$",
             "key": "sum_primary_reward"
         },
         "secondary_return": {
@@ -181,8 +186,8 @@ for i, experiment in enumerate(args.experiments):
         for figure_name in figures:
             values = training_results_df.get(figures[figure_name]["key"])
             if values is not None:
-                figures[figure_name]["values"].append(np.array(values))
-
+                figures[figure_name]["values"].append(np.array(values)*10)
+        print("metrics", figures['orthogonal_velocity'].values())
     # The shortest training within the experiment determines the number of steps until which the values are considered
     x = min(xs, key=lambda x: len(x))
 
@@ -194,7 +199,7 @@ for i, experiment in enumerate(args.experiments):
         if len(values) == 0:
             continue
 
-        plt.figure(figure_name)
+        plt.figure(figure_name, figsize=(6,6))
 
         # Apply filter to smooth data
         if args.window_length > 0 and args.window_length % 2 != 0:
@@ -247,7 +252,7 @@ for figure_name in figures:
     plt.xlabel(x_label, fontsize=23)
     plt.ylabel(y_label, fontsize=23)
     plt.grid(color="whitesmoke")
-    if args.labels is not None:
+    """if args.labels is not None:
         for count, label in enumerate(args.labels):
             label = label.replace("_", " ")
             label = label.replace("pos", "+")
@@ -255,7 +260,7 @@ for figure_name in figures:
             args.labels[count] = label
         plt.legend(args.labels, loc="lower right")
     else:
-        plt.legend()
+        plt.legend()"""
     plt.tight_layout()
 
     if args.save_as is not None:
